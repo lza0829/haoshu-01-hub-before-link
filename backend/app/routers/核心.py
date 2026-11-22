@@ -26,9 +26,12 @@ def 取总览():
     return 目录.总览()
 
 
-@路由.get("/枢纽/{类}")
-def 列枢纽(类: str):
-    表 = {"号卡": "枢纽_号卡", "套餐": "枢纽_套餐", "客户": "枢纽_客户"}.get(类)
+# 注意：Starlette 路径参数名仅认 ASCII（[a-zA-Z_][a-zA-Z0-9_]*），
+# 中文参数名会被编译成字面量导致路由 404，故路径参数名一律用拼音。
+
+@路由.get("/枢纽/{lei}")
+def 列枢纽(lei: str):
+    表 = {"号卡": "枢纽_号卡", "套餐": "枢纽_套餐", "客户": "枢纽_客户"}.get(lei)
     if not 表:
         raise HTTPException(404, "未知枢纽类")
     conn = 连接()
@@ -38,14 +41,14 @@ def 列枢纽(类: str):
         conn.close()
 
 
-@路由.get("/链接/{类}")
-def 列链接(类: str):
-    if 类 == "号卡套餐":
+@路由.get("/链接/{lei}")
+def 列链接(lei: str):
+    if lei == "号卡套餐":
         sql = """SELECT l.*, a.业务键 AS 号卡业务键, b.业务键 AS 套餐业务键
                  FROM 链接_号卡套餐 l
                  JOIN 枢纽_号卡 a ON a.哈希键=l.号卡哈希
                  JOIN 枢纽_套餐 b ON b.哈希键=l.套餐哈希"""
-    elif 类 == "号卡客户":
+    elif lei == "号卡客户":
         sql = """SELECT l.*, a.业务键 AS 号卡业务键, b.业务键 AS 客户业务键
                  FROM 链接_号卡客户 l
                  JOIN 枢纽_号卡 a ON a.哈希键=l.号卡哈希
@@ -59,14 +62,14 @@ def 列链接(类: str):
         conn.close()
 
 
-@路由.get("/卫星/{类}")
-def 列卫星(类: str, 仅当前: int = 1):
+@路由.get("/卫星/{lei}")
+def 列卫星(lei: str, 仅当前: int = 1):
     表 = {
         "号卡": "卫星_号卡属性",
         "套餐": "卫星_套餐属性",
         "客户": "卫星_客户属性",
         "订购": "卫星_订购属性",
-    }.get(类)
+    }.get(lei)
     if not 表:
         raise HTTPException(404, "未知卫星类")
     conn = 连接()
@@ -114,6 +117,15 @@ def 装夹具(名: str = "号卡套餐样例"):
 @路由.post("/贯验")
 def 做贯验():
     return 贯验.跑贯验()
+
+
+@路由.get("/贯验/缺端/{pi}")
+def 查缺端(pi: str):
+    """缺端贯验只读接口：批号 → 缺端键 / 正式链接增量 / 候选·拒绝位（架构甲）。"""
+    果 = 贯验.查缺端批(pi)
+    if 果 is None:
+        raise HTTPException(404, f"批号无回执亦无隔离记录:{pi}")
+    return 果
 
 
 @路由.get("/贯验")

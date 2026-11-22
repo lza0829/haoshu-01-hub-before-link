@@ -77,7 +77,18 @@ CREATE TABLE IF NOT EXISTS 隔离匣 (
   编号 INTEGER PRIMARY KEY AUTOINCREMENT,
   原因 TEXT NOT NULL,
   载荷 TEXT NOT NULL,
-  时刻 TEXT NOT NULL
+  时刻 TEXT NOT NULL,
+  批号 TEXT NOT NULL DEFAULT ''
+);
+CREATE TABLE IF NOT EXISTS 装载回执 (
+  编号 INTEGER PRIMARY KEY AUTOINCREMENT,
+  批号 TEXT NOT NULL,
+  时刻 TEXT NOT NULL,
+  结果 TEXT NOT NULL,
+  缺端键 TEXT NOT NULL DEFAULT '[]',
+  链接落库数 INTEGER NOT NULL DEFAULT 0,
+  涉及链接哈希 TEXT NOT NULL DEFAULT '[]',
+  说明 TEXT NOT NULL DEFAULT ''
 );
 CREATE TABLE IF NOT EXISTS 金库贯验 (
   编号 INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -111,6 +122,10 @@ def 载荷哈希(obj) -> str:
 def 初始化库() -> None:
     conn = 连接()
     conn.executescript(建表)
+    # 旧库迁移：隔离匣补批号列（拒绝位可按批号检索）
+    列 = {r["name"] for r in conn.execute("PRAGMA table_info(隔离匣)")}
+    if "批号" not in 列:
+        conn.execute("ALTER TABLE 隔离匣 ADD COLUMN 批号 TEXT NOT NULL DEFAULT ''")
     if conn.execute("SELECT COUNT(*) AS c FROM 站规").fetchone()["c"] == 0:
         for k, v in {"站名": "号枢", "默认装载日": "2026-11-21"}.items():
             conn.execute("INSERT INTO 站规(键, 值) VALUES (?, ?)", (k, v))
